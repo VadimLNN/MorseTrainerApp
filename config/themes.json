@@ -1,0 +1,22 @@
+{
+    "Deep Space": {
+        "comment": "Тема в стиле картинки с виджетами",
+        "bg_color": ["#1D202D", "#161821"],
+        "fg_color": "#282C3A",
+        "hover_color": "#3A4052",
+        "button_color": "#4A5063",
+        "button_hover_color": "#5A6175",
+        "text_color": "#D8DEE9",
+        "accent_color": "#E5788F"
+    },
+    "Dracula": {
+        "comment": "Классическая темная тема для кода",
+        "bg_color": ["#282a36", "#21222c"],
+        "fg_color": "#44475a",
+        "hover_color": "#6272a4",
+        "button_color": "#44475a",
+        "button_hover_color": "#6272a4",
+        "text_color": "#f8f8f2",
+        "accent_color": "#bd93f9"
+    }
+}
