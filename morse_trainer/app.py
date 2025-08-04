@@ -13,8 +13,11 @@ class MorseTrainerApp(ctk.CTk):
         
         # --- Инициализация бэкенда ---
         self.audio_player = AudioPlayer()
-        self.logic = MorseLogic(self.lessons_config, self.audio_player)
+        self.characters_data = load_json("config/characters.json") 
+        self.lessons_data = load_json("config/lessons.json")
         
+        self.logic = MorseLogic(self.characters_data, self.lessons_data, self.audio_player)
+
         # --- Настройка окна ---
         self.title("Morse Trainer NG")
         self.geometry("900x650")

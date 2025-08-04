@@ -4,22 +4,22 @@ import time
 
 class MorseLogic:
     """Управляет логикой уроков, генерацией упражнений и воспроизведением."""
-    def __init__(self, lessons_config: dict, audio_player):
+    def __init__(self, characters_data: dict, lessons_data: dict, audio_player):
         self.audio_player = audio_player
-        self.lessons_structure = lessons_config.get("lessons_structure", [])
+        self.lessons_structure = lessons_data.get("course", [])
         self.char_map = {}
-        # Объединяем все словари в один для удобного поиска
-        self.char_map.update(lessons_config.get("alphabet", {}))
-        self.char_map.update(lessons_config.get("digits", {}))
-        self.char_map.update(lessons_config.get("signs", {}))
+        # Объединяем все словари из characters_data в один для удобного поиска
+        self.char_map.update(characters_data.get("alphabet", {}))
+        self.char_map.update(characters_data.get("digits", {}))
+        self.char_map.update(characters_data.get("signs", {}))
 
         self.is_playing = False
         self.playback_thread = None
 
-    def get_lesson_chars(self, lesson_num: int):
+    def get_lesson_chars(self, lesson_id: int):
         """Возвращает список символов для указанного урока."""
         for lesson in self.lessons_structure:
-            if lesson['lesson'] == lesson_num:
+            if lesson['lesson_id'] == lesson_id:
                 return lesson['chars']
         return []
 
