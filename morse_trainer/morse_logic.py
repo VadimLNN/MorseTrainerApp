@@ -49,7 +49,7 @@ class MorseLogic:
             text += group + " "
         return text.strip()
 
-    def _play_morse_thread_target(self, text: str):
+    def _play_morse_thread_target(self, text: str, on_complete_callback=None):
         """Целевая функция для потока воспроизведения."""
         self.is_playing = True
         print(f"Воспроизведение: {text}")
@@ -75,13 +75,19 @@ class MorseLogic:
         self.is_playing = False
         print("Воспроизведение завершено.")
 
-    def start_playback(self, text: str):
+        if on_complete_callback:
+            on_complete_callback(text)
+
+    def start_playback(self, text: str, on_complete=None):
         """Запускает воспроизведение Морзе в отдельном потоке."""
         if self.is_playing:
             print("Уже идет воспроизведение. Сначала остановите.")
             return
-
-        self.playback_thread = threading.Thread(target=self._play_morse_thread_target, args=(text,))
+        
+        self.playback_thread = threading.Thread(
+            target=self._play_morse_thread_target, 
+            args=(text, on_complete) # <-- Передаем callback в поток
+        )
         self.playback_thread.daemon = True # Поток завершится, если закроется основное приложение
         self.playback_thread.start()
 

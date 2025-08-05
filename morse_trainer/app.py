@@ -17,6 +17,8 @@ class MorseTrainerApp(ctk.CTk):
         self.audio_player = AudioPlayer()
         self.logic = MorseLogic(self.characters_data, self.lessons_data, self.audio_player)
 
+        self.output_textbox = None
+
         # --- Настройка окна ---
         self.title("Morse Trainer NG")
         self.geometry("900x650")
@@ -190,29 +192,59 @@ class MorseTrainerApp(ctk.CTk):
             
             if char_pool:
                 exercise_text = self.logic.generate_exercise_text(char_pool, num_groups, group_size)
-                self.logic.start_playback(exercise_text)
+                self.logic.start_playback(
+                    exercise_text, 
+                    on_complete=lambda text: self.after(10, self._on_playback_complete, text)
+                )
+
+    def _on_playback_complete(self, text: str):
+        """Этот метод будет вызван БЕЗОПАСНО из главного потока."""
+        print(f"Воспроизведение завершено. Выводим текст: {text}")
+        
+        if self.output_textbox:
+            # Вставляем текст, отформатированный в группы по 5 знаков
+            formatted_text = ""
+            words = text.split()
+            for i, word in enumerate(words):
+                formatted_text += word + " "
+                if (i + 1) % 5 == 0: # Перенос строки каждые 5 групп
+                    formatted_text += "\n"
+            
+            self.output_textbox.delete("1.0", "end") # Очищаем
+            self.output_textbox.insert("1.0", formatted_text.strip())
+
+    def _reconfigure_ui_for_exercise(self, exercise_type: str, char_pool: list):
+        """Перестраивает основной рабочий блок (keyboard_frame) под тип упражнения."""
+        # Очищаем старые виджеты
+        for widget in self.keyboard_frame.winfo_children():
+            widget.destroy()
+        
+        # Обнуляем ссылку на старый виджет
+        self.output_textbox = None
+
+        if exercise_type == "group_reception":
+            # Создаем и настраиваем текстовый виджет для вывода
+            self.output_textbox = ctk.CTkTextbox(self.keyboard_frame, 
+                                                 font=("JetBrains Mono", 18), # Используем хороший моноширинный шрифт
+                                                 corner_radius=10,
+                                                 wrap="word") # Перенос по словам
+            self.output_textbox.pack(expand=True, fill="both", padx=5, pady=5)
+            self.output_textbox.insert("1.0", "Готов к приему групп...\nНажмите 'СТАРТ'")
+            
+        elif exercise_type == "study":
+            # TODO: Реализовать режим изучения
+            label = ctk.CTkLabel(self.keyboard_frame, text="Режим изучения. (В разработке)")
+            label.pack(pady=20, padx=10)
+
+        elif "recognition" in exercise_type:
+            # TODO: Реализовать режим распознавания
+            label = ctk.CTkLabel(self.keyboard_frame, text="Режим распознавания. (В разработке)")
+            label.pack(pady=20, padx=10)
 
     def _on_stop_click(self):
         """Обрабатывает нажатие на кнопку СТОП."""
         print("Нажата кнопка СТОП.")
         self.logic.stop_playback()
-
-    def _reconfigure_ui_for_exercise(self, exercise_type: str, char_pool: list):
-        for widget in self.keyboard_frame.winfo_children():
-            widget.destroy()
-        
-        # Заглушки для разных режимов
-        if exercise_type == "study":
-            label = ctk.CTkLabel(self.keyboard_frame, text="Режим изучения. (Интерфейс в разработке)")
-            label.pack(pady=20, padx=10)
-
-        elif "recognition" in exercise_type:
-            label = ctk.CTkLabel(self.keyboard_frame, text="Режим распознавания. (Интерфейс в разработке)")
-            label.pack(pady=20, padx=10)
-
-        elif exercise_type == "group_reception":
-            label = ctk.CTkLabel(self.keyboard_frame, text="Прием групп. Слушайте внимательно...")
-            label.pack(pady=50, padx=10)
 
     def on_closing(self):
         print("Закрытие приложения...")
