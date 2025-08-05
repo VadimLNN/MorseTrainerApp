@@ -50,7 +50,7 @@ class MorseTrainerApp(ctk.CTk):
         speed_label = ctk.CTkLabel(sidebar_frame, text="Скорость (WPM)", font=("Fira Code", 14))
         speed_label.pack(pady=(15, 5), padx=20, anchor="w")
         self.wpm_slider = ctk.CTkSlider(sidebar_frame, from_=5, to=40, number_of_steps=35, command=self._update_wpm)
-        self.wpm_slider.set(20)
+        self.wpm_slider.set(10)
         self.wpm_slider.pack(pady=5, padx=20, fill="x")
 
         tone_label = ctk.CTkLabel(sidebar_frame, text="Тон (Hz)", font=("Fira Code", 14))
@@ -83,7 +83,8 @@ class MorseTrainerApp(ctk.CTk):
 
         exercise_label = ctk.CTkLabel(controls_frame, text="Упр.:")
         exercise_label.grid(row=0, column=1, padx=5, sticky="w")
-        self.exercise_optionmenu = ctk.CTkOptionMenu(controls_frame, values=["Загрузка..."])
+        self.exercise_optionmenu = ctk.CTkOptionMenu(controls_frame, values=["Загрузка..."],
+            command=self._on_exercise_selected)
         self.exercise_optionmenu.grid(row=1, column=1, padx=5, sticky="ew")
 
         groups_label = ctk.CTkLabel(controls_frame, text="Группы:")
@@ -139,7 +140,28 @@ class MorseTrainerApp(ctk.CTk):
         exercise_names = [f"{eid}: {desc}" for eid, desc in exercises_info]
         self.exercise_optionmenu.configure(values=exercise_names)
         if exercise_names:
-            self.exercise_optionmenu.set(exercise_names[0])
+            exercise_to_select = exercise_names[0]
+            self.exercise_optionmenu.set(exercise_to_select)
+            self._on_exercise_selected(exercise_to_select)
+
+    def _on_exercise_selected(self, selected_exercise_name: str):
+        """Вызывается при выборе упражнения. СРАЗУ меняет интерфейс."""
+        selected_lesson_str = self.lesson_optionmenu.get()
+        if not selected_lesson_str or not selected_exercise_name:
+            return
+
+        lesson_id = int(selected_lesson_str.split(':')[0])
+        exercise_id = int(selected_exercise_name.split(':')[0])
+
+        exercise = self.logic.get_exercise_details(lesson_id, exercise_id)
+        if not exercise:
+            return
+
+        exercise_type = exercise['type']
+        char_pool = self.logic.get_character_pool(lesson_id, exercise_type)
+
+        # Перестраиваем UI немедленно
+        self._reconfigure_ui_for_exercise(exercise_type, char_pool)
 
     def _update_wpm(self, value):
         self.audio_player.set_wpm(int(value))
@@ -158,6 +180,7 @@ class MorseTrainerApp(ctk.CTk):
             self.audio_player.set_sound_type("analog")
 
     def _on_start_click(self):
+        """Запускает ДЕЙСТВИЕ для текущего выбранного упражнения."""
         selected_lesson_str = self.lesson_optionmenu.get()
         selected_exercise_str = self.exercise_optionmenu.get()
         if not selected_lesson_str or not selected_exercise_str:
@@ -167,18 +190,16 @@ class MorseTrainerApp(ctk.CTk):
         exercise_id = int(selected_exercise_str.split(':')[0])
         
         exercise = self.logic.get_exercise_details(lesson_id, exercise_id)
-        if not exercise:
-            return
+        if not exercise: return
 
         exercise_type = exercise['type']
         char_pool = self.logic.get_character_pool(lesson_id, exercise_type)
         
-        print(f"Запуск: Урок {lesson_id}, Упр. {exercise_id}, Тип: {exercise_type}")
-        print(f"Доступные символы: {char_pool}")
-        
-        self._reconfigure_ui_for_exercise(exercise_type, char_pool)
+        print(f"СТАРТ для: Урок {lesson_id}, Упр. {exercise_id}, Тип: {exercise_type}")
         
         if exercise_type == "study":
+            # В этом режиме кнопка СТАРТ ничего не делает, т.к. все по клику/наведению
+            print("В режиме изучения кнопка СТАРТ неактивна.")
             pass
             
         elif exercise_type in ["single_char_recognition_lesson", "single_char_recognition_cumulative"]:
@@ -187,6 +208,10 @@ class MorseTrainerApp(ctk.CTk):
                 self.logic.start_playback(random_char)
             
         elif exercise_type == "group_reception":
+            if self.output_textbox:
+                self.output_textbox.delete("1.0", "end")
+                self.output_textbox.insert("1.0", "Прием...")
+
             num_groups = int(self.groups_optionmenu.get())
             group_size = int(self.group_size_optionmenu.get())
             
