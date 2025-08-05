@@ -102,6 +102,11 @@ class MorseTrainerApp(ctk.CTk):
         footer_frame.grid(row=2, column=0, padx=15, pady=15, sticky="ew")
         footer_frame.grid_columnconfigure(1, weight=1)
         
+        footer_frame.grid_columnconfigure(0, weight=1) # Левый переключатель
+        footer_frame.grid_columnconfigure(1, weight=2) # Кнопка СТАРТ
+        footer_frame.grid_columnconfigure(2, weight=2) # Кнопка СТОП
+        footer_frame.grid_columnconfigure(3, weight=1) # Правый переключатель
+
         self.mnemonics_switch = ctk.CTkSwitch(footer_frame, text="Напевы")
         self.mnemonics_switch.grid(row=0, column=0, padx=10)
         
@@ -109,8 +114,13 @@ class MorseTrainerApp(ctk.CTk):
                                      command=self._on_start_click, height=40)
         start_button.grid(row=0, column=1, sticky="ew", padx=10)
         
+        stop_button = ctk.CTkButton(footer_frame, text="СТОП", font=("Fira Code", 18, "bold"),
+                                    command=self._on_stop_click, height=40,
+                                    fg_color="#D32F2F", hover_color="#B71C1C") # Красный цвет для стоп-кнопки
+        stop_button.grid(row=0, column=2, sticky="ew", padx=5)
+
         self.sound_type_switch = ctk.CTkSwitch(footer_frame, text="Дискретный звук")
-        self.sound_type_switch.grid(row=0, column=2, padx=10)
+        self.sound_type_switch.grid(row=0, column=3, padx=10)
 
     def _populate_lesson_menu(self):
         lessons_info = self.logic.get_all_lessons_info()
@@ -173,6 +183,11 @@ class MorseTrainerApp(ctk.CTk):
             if char_pool:
                 exercise_text = self.logic.generate_exercise_text(char_pool, num_groups, group_size)
                 self.logic.start_playback(exercise_text)
+
+    def _on_stop_click(self):
+        """Обрабатывает нажатие на кнопку СТОП."""
+        print("Нажата кнопка СТОП.")
+        self.logic.stop_playback()
 
     def _reconfigure_ui_for_exercise(self, exercise_type: str, char_pool: list):
         for widget in self.keyboard_frame.winfo_children():
