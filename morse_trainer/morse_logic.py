@@ -11,6 +11,8 @@ class MorseLogic:
 
         self.exercise_types = lessons_data.get("exercise_types", {})
 
+        self.keyboard_layout = characters_data.get("keyboard_layout", ["ABC", "123"])
+
         # Объединяем все словари из characters_data в один для удобного поиска
         self.char_map.update(characters_data.get("alphabet", {}))
         self.char_map.update(characters_data.get("digits", {}))
@@ -18,6 +20,12 @@ class MorseLogic:
 
         self.is_playing = False
         self.playback_thread = None
+
+    def get_keyboard_layout(self):
+        """
+        Возвращает раскладку клавиатуры, загруженную из файла конфигурации.
+        """
+        return self.keyboard_layout
 
     def get_all_lessons_info(self):
         """Возвращает список ID и имен всех уроков для GUI."""
