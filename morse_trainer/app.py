@@ -21,6 +21,11 @@ class MorseTrainerApp(ctk.CTk):
         self.study_char_label = None
         self.study_code_label = None
         self.study_mnemonic_label = None
+        self.current_correct_char = None
+        self.keyboard_buttons = {}
+        self.rounds_left = 0
+        self.current_char_pool = []
+        self.info_label = None
 
         # --- Настройка окна ---
         self.title("Morse Trainer NG")
@@ -106,12 +111,10 @@ class MorseTrainerApp(ctk.CTk):
         # Нижний блок управления
         footer_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         footer_frame.grid(row=2, column=0, padx=15, pady=15, sticky="ew")
-        footer_frame.grid_columnconfigure(1, weight=1)
         
-        footer_frame.grid_columnconfigure(0, weight=1) # Левый переключатель
-        footer_frame.grid_columnconfigure(1, weight=2) # Кнопка СТАРТ
-        footer_frame.grid_columnconfigure(2, weight=2) # Кнопка СТОП
-        footer_frame.grid_columnconfigure(3, weight=1) # Правый переключатель
+        footer_frame.grid_columnconfigure(0, weight=2) # Кнопка СТАРТ
+        footer_frame.grid_columnconfigure(1, weight=2) # Кнопка СТОП
+        footer_frame.grid_columnconfigure(2, weight=1) # Правый переключатель
 
         start_button = ctk.CTkButton(footer_frame, text="СТАРТ", font=("Fira Code", 18, "bold"),
                                      command=self._on_start_click, height=40)
@@ -158,10 +161,10 @@ class MorseTrainerApp(ctk.CTk):
             return
 
         exercise_type = exercise['type']
-        char_pool = self.logic.get_character_pool(lesson_id, exercise_type)
 
-        # Перестраиваем UI немедленно
-        self._reconfigure_ui_for_exercise(exercise_type, char_pool)
+        self.current_char_pool = self.logic.get_character_pool(lesson_id, exercise_type)
+
+        self._reconfigure_ui_for_exercise(exercise_type)
 
     def _update_wpm(self, value):
         self.audio_player.set_wpm(int(value))
@@ -202,10 +205,16 @@ class MorseTrainerApp(ctk.CTk):
             print("В режиме изучения кнопка СТАРТ неактивна.")
             pass
             
-        elif exercise_type in ["single_char_recognition_lesson", "single_char_recognition_cumulative"]:
-            if char_pool:
-                random_char = random.choice(char_pool)
-                self.logic.start_playback(random_char)
+        elif "recognition" in exercise_type:
+            # ИСПРАВЛЕНО: Инициализируем счетчик раундов
+            num_groups = int(self.groups_optionmenu.get())
+            group_size = int(self.group_size_optionmenu.get())
+            self.rounds_left = num_groups * group_size
+            
+            if self.rounds_left > 0:
+                self._start_recognition_round()
+            else:
+                print("Количество раундов должно быть больше 0.")
             
         elif exercise_type == "group_reception":
             if self.output_textbox:
@@ -238,7 +247,7 @@ class MorseTrainerApp(ctk.CTk):
             self.output_textbox.delete("1.0", "end") # Очищаем
             self.output_textbox.insert("1.0", formatted_text.strip())
 
-    def _reconfigure_ui_for_exercise(self, exercise_type: str, char_pool: list):
+    def _reconfigure_ui_for_exercise(self, exercise_type: str):
         """Перестраивает основной рабочий блок (keyboard_frame) под тип упражнения."""
         # Очищаем старые виджеты
         for widget in self.keyboard_frame.winfo_children():
@@ -249,6 +258,10 @@ class MorseTrainerApp(ctk.CTk):
         self.study_char_label = None
         self.study_code_label = None
         self.study_mnemonic_label = None
+        self.current_correct_char = None
+        self.keyboard_buttons = {}
+
+        self.info_label = None
 
         if exercise_type == "study":
             # --- РЕАЛИЗАЦИЯ РЕЖИМА ИЗУЧЕНИЯ ---
@@ -277,7 +290,7 @@ class MorseTrainerApp(ctk.CTk):
             buttons_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
 
             # 3. Создаем сами кнопки и привязываем события
-            for i, char in enumerate(char_pool):
+            for i, char in enumerate(self.current_char_pool):
                 buttons_frame.grid_columnconfigure(i, weight=1)
                 
                 button = ctk.CTkButton(
@@ -299,8 +312,47 @@ class MorseTrainerApp(ctk.CTk):
             self.output_textbox.insert("1.0", "Готов к приему групп...\nНажмите 'СТАРТ'")
 
         elif "recognition" in exercise_type:
-            label = ctk.CTkLabel(self.keyboard_frame, text="Режим распознавания. (В разработке)")
-            label.pack(pady=20, padx=10)
+            self.info_label = ctk.CTkLabel(self.keyboard_frame, text="Нажмите 'СТАРТ', чтобы начать", font=("Fira Code", 16))
+            self.info_label.pack(pady=10)
+
+            # Создаем фрейм для самой клавиатуры
+            kb_frame = ctk.CTkFrame(self.keyboard_frame, fg_color="transparent")
+            kb_frame.pack(expand=True, fill="both", padx=5, pady=5)
+
+            # Определяем раскладку клавиатуры
+            layout = [
+                "ЙЦУКЕНГШЩЗХЪ",
+                "ФЫВАПРОЛДЖЭ",
+                "ЯЧСМИТЬБЮ",
+                "1234567890",
+                ".,?/+="
+            ]
+            
+            # Создаем кнопки для всей раскладки
+            for row_idx, row_chars in enumerate(layout):
+                kb_frame.rowconfigure(row_idx, weight=1)
+                for col_idx, char in enumerate(row_chars):
+                    kb_frame.columnconfigure(col_idx, weight=1)
+                    
+                    is_active = char in self.current_char_pool
+                    
+                    button = ctk.CTkButton(
+                        kb_frame, text=char,
+                        font=("Fira Code", 16, "bold"),
+                        # Привязываем команду ко всем кнопкам
+                        command=lambda c=char: self._on_recognition_button_click(c)
+                    )
+                    
+                    # Визуально "выключаем" неактивные, но оставляем их рабочими
+                    if not is_active:
+                        # Убираем state="disabled"
+                        button.configure(fg_color="gray20", text_color="gray50", hover=False)
+                    
+                    button.grid(row=row_idx, column=col_idx, padx=2, pady=2, sticky="nsew")
+                    self.keyboard_buttons[char] = button
+                    
+                    button.grid(row=row_idx, column=col_idx, padx=2, pady=2, sticky="nsew")
+                    self.keyboard_buttons[char] = button 
 
     def _on_stop_click(self):
         """Обрабатывает нажатие на кнопку СТОП."""
@@ -340,6 +392,94 @@ class MorseTrainerApp(ctk.CTk):
     def _on_study_button_click(self, char: str):
         """Вызывается при клике на кнопку. ТОЛЬКО ПРОИГРЫВАЕТ ЗВУК."""
         self.logic.start_playback(char)
+
+    def _start_recognition_round(self):
+        """Запускает один раунд игры в распознавание."""
+        if self.rounds_left <= 0: return
+
+        if self.info_label: # Безопасная проверка
+            self.info_label.configure(text=f"Прием... Осталось знаков: {self.rounds_left}")
+
+        info_label = self.keyboard_frame.winfo_children()[0]
+        info_label.configure(text=f"Прием... Осталось знаков: {self.rounds_left}")
+
+        selected_lesson_str = self.lesson_optionmenu.get()
+        exercise = self.logic.get_exercise_details(int(selected_lesson_str.split(':')[0]), int(self.exercise_optionmenu.get().split(':')[0]))
+        char_pool = self.logic.get_character_pool(int(selected_lesson_str.split(':')[0]), exercise['type'])
+        
+        if not char_pool: return
+
+        self.current_correct_char = random.choice(self.current_char_pool)
+        print(f"Новый раунд. Загадан знак: '{self.current_correct_char}'")
+        self.logic.start_playback(self.current_correct_char)
+    
+    def _on_recognition_button_click(self, char: str):
+        """
+        Обрабатывает нажатие на кнопку в режиме распознавания.
+        Эта функция теперь быстрая, чистая и занимается только своим делом.
+        """
+        # 1. Проверяем, активна ли кнопка (не делаем лишних вычислений)
+        if char not in self.current_char_pool:
+            print(f"Нажата неактивная кнопка: {char}")
+            return
+        
+        # 2. Проверяем, идет ли сейчас раунд
+        if not self.current_correct_char:
+            print("Нет активного знака для угадывания. Нажмите СТАРТ.")
+            return
+
+        # 3. Получаем виджет кнопки
+        button = self.keyboard_buttons.get(char)
+        if not button: return
+
+        original_color = button.cget("fg_color")
+
+        # 4. Сравниваем ответ и даем обратную связь
+        if char == self.current_correct_char:
+            # --- ВЕТКА ПРАВИЛЬНОГО ОТВЕТА ---
+            print(f"Правильно! Это была '{char}'")
+            self.rounds_left -= 1
+            print(f"Раундов осталось: {self.rounds_left}")
+
+            button.configure(fg_color="green")
+            self.after(200, lambda: button.configure(fg_color=original_color))
+            
+            if self.rounds_left > 0:
+                self.after(300, self._start_recognition_round)
+            else:
+                print("Упражнение завершено!")
+                self.current_correct_char = None
+                if self.info_label:
+                    self.info_label.configure(text="Упражнение завершено! Нажмите 'СТАРТ' для начала.")
+        else:
+            # --- ВЕТКА НЕПРАВИЛЬНОГО ОТВЕТА ---
+            print(f"Неправильно. Вы нажали '{char}', а было '{self.current_correct_char}'")
+            self.show_error_and_replay(self.current_correct_char, start_new_round=True)
+    
+    def show_error_and_replay(self, correct_char: str, start_new_round: bool = False):
+        """Показывает модальное окно с правильным ответом и проигрывает его 3 раза."""
+        error_window = ctk.CTkToplevel(self)
+        error_window.title("Ошибка")
+        error_window.geometry("300x150")
+        error_window.transient(self)
+        error_window.grab_set()
+        error_window.resizable(False, False)
+
+        label = ctk.CTkLabel(error_window, text=f"Ошибка!\nПравильный знак: {correct_char}", font=("Fira Code", 20))
+        label.pack(expand=True, pady=20)
+
+        def replay_and_close(count=3):
+            if count > 0:
+                self.logic.start_playback(correct_char, on_complete=lambda text: error_window.after(300, replay_and_close, count - 1))
+            else:
+                error_window.grab_release()
+                error_window.destroy()
+                # ИСПРАВЛЕНО: Запускаем новый раунд, если нужно
+                if start_new_round and self.rounds_left > 0:
+                    self.after(100, self._start_recognition_round)
+
+        replay_and_close()
+
 
 
 
