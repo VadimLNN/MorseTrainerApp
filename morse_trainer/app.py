@@ -109,9 +109,6 @@ class MorseTrainerApp(ctk.CTk):
         footer_frame.grid_columnconfigure(2, weight=2) # Кнопка СТОП
         footer_frame.grid_columnconfigure(3, weight=1) # Правый переключатель
 
-        self.mnemonics_switch = ctk.CTkSwitch(footer_frame, text="Напевы")
-        self.mnemonics_switch.grid(row=0, column=0, padx=10)
-        
         start_button = ctk.CTkButton(footer_frame, text="СТАРТ", font=("Fira Code", 18, "bold"),
                                      command=self._on_start_click, height=40)
         start_button.grid(row=0, column=1, sticky="ew", padx=10)
