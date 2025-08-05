@@ -95,6 +95,10 @@ class MorseLogic:
         """Останавливает текущее воспроизведение."""
         self.is_playing = False
 
+    def get_char_details(self, char: str):
+        """Возвращает детали для одного символа (код и напев)."""
+        return self.char_map.get(char.upper())
+
     def get_character_pool(self, lesson_id: int, exercise_type: str):
         """Определяет набор символов для упражнения в зависимости от его типа."""
         

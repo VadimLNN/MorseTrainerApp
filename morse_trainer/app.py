@@ -18,6 +18,9 @@ class MorseTrainerApp(ctk.CTk):
         self.logic = MorseLogic(self.characters_data, self.lessons_data, self.audio_player)
 
         self.output_textbox = None
+        self.study_char_label = None
+        self.study_code_label = None
+        self.study_mnemonic_label = None
 
         # --- Настройка окна ---
         self.title("Morse Trainer NG")
@@ -59,7 +62,7 @@ class MorseTrainerApp(ctk.CTk):
         volume_label = ctk.CTkLabel(sidebar_frame, text="Громкость (%)", font=("Fira Code", 14))
         volume_label.pack(pady=(20, 5), padx=20, anchor="w")
         self.volume_slider = ctk.CTkSlider(sidebar_frame, from_=0, to=100, command=self._update_volume)
-        self.volume_slider.set(50) # Ставим громкость по умолчанию
+        self.volume_slider.set(20) # Ставим громкость по умолчанию
         self.volume_slider.pack(pady=5, padx=20, fill="x")
 
         # --- Правая панель (основная) ---
@@ -216,25 +219,61 @@ class MorseTrainerApp(ctk.CTk):
         for widget in self.keyboard_frame.winfo_children():
             widget.destroy()
         
-        # Обнуляем ссылку на старый виджет
+        # Обнуляем ссылки на старые виджеты
         self.output_textbox = None
+        self.study_char_label = None
+        self.study_code_label = None
+        self.study_mnemonic_label = None
 
-        if exercise_type == "group_reception":
-            # Создаем и настраиваем текстовый виджет для вывода
+        if exercise_type == "study":
+            # --- РЕАЛИЗАЦИЯ РЕЖИМА ИЗУЧЕНИЯ ---
+            self.keyboard_frame.grid_rowconfigure(0, weight=3) # Дисплей занимает больше места
+            self.keyboard_frame.grid_rowconfigure(1, weight=1) # Кнопки занимают меньше
+            self.keyboard_frame.grid_columnconfigure(0, weight=1)
+
+            # 1. Создаем фрейм для центрального дисплея
+            display_frame = ctk.CTkFrame(self.keyboard_frame, corner_radius=10)
+            display_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+            
+            display_frame.grid_rowconfigure(0, weight=1)
+            display_frame.grid_columnconfigure(0, weight=1)
+
+            self.study_char_label = ctk.CTkLabel(display_frame, text="?", font=("JetBrains Mono", 120, "bold"))
+            self.study_char_label.place(relx=0.5, rely=0.35, anchor="center")
+            
+            self.study_code_label = ctk.CTkLabel(display_frame, text="", font=("JetBrains Mono", 40))
+            self.study_code_label.place(relx=0.5, rely=0.65, anchor="center")
+
+            self.study_mnemonic_label = ctk.CTkLabel(display_frame, text="", font=("Fira Code", 20, "italic"))
+            self.study_mnemonic_label.place(relx=0.5, rely=0.85, anchor="center")
+
+            # 2. Создаем фрейм для кнопок
+            buttons_frame = ctk.CTkFrame(self.keyboard_frame, fg_color="transparent")
+            buttons_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+
+            # 3. Создаем сами кнопки и привязываем события
+            for i, char in enumerate(char_pool):
+                buttons_frame.grid_columnconfigure(i, weight=1)
+                
+                button = ctk.CTkButton(
+                    buttons_frame, text=char,
+                    font=("Fira Code", 24, "bold"),
+                    command=lambda c=char: self._on_study_button_click(c)
+                )
+                button.grid(row=0, column=i, padx=5, pady=5, sticky="ew")
+
+                button.bind("<Enter>", lambda event, c=char: self._on_study_button_enter(event, c))
+                button.bind("<Leave>", self._on_study_button_leave)
+
+        elif exercise_type == "group_reception":
             self.output_textbox = ctk.CTkTextbox(self.keyboard_frame, 
-                                                 font=("JetBrains Mono", 18), # Используем хороший моноширинный шрифт
+                                                 font=("JetBrains Mono", 18),
                                                  corner_radius=10,
-                                                 wrap="word") # Перенос по словам
+                                                 wrap="word")
             self.output_textbox.pack(expand=True, fill="both", padx=5, pady=5)
             self.output_textbox.insert("1.0", "Готов к приему групп...\nНажмите 'СТАРТ'")
-            
-        elif exercise_type == "study":
-            # TODO: Реализовать режим изучения
-            label = ctk.CTkLabel(self.keyboard_frame, text="Режим изучения. (В разработке)")
-            label.pack(pady=20, padx=10)
 
         elif "recognition" in exercise_type:
-            # TODO: Реализовать режим распознавания
             label = ctk.CTkLabel(self.keyboard_frame, text="Режим распознавания. (В разработке)")
             label.pack(pady=20, padx=10)
 
@@ -242,9 +281,40 @@ class MorseTrainerApp(ctk.CTk):
         """Обрабатывает нажатие на кнопку СТОП."""
         print("Нажата кнопка СТОП.")
         self.logic.stop_playback()
-
+    
     def on_closing(self):
         print("Закрытие приложения...")
         self.logic.stop_playback()
         self.audio_player.stop()
         self.destroy()
+
+    def _on_study_button_enter(self, event, char: str):
+        """Вызывается при наведении мыши на кнопку символа."""
+        char_details = self.logic.get_char_details(char)
+        if not char_details:
+            return
+
+        # Обновляем центральный дисплей
+        if self.study_char_label:
+            self.study_char_label.configure(text=char)
+        if self.study_code_label:
+            self.study_code_label.configure(text=char_details.get('code', ''))
+        if self.study_mnemonic_label:
+            self.study_mnemonic_label.configure(text=char_details.get('mnemonic', ''))
+
+    def _on_study_button_leave(self, event):
+        """Вызывается, когда мышь уходит с кнопки."""
+        # Очищаем дисплей
+        if self.study_char_label:
+            self.study_char_label.configure(text="?")
+        if self.study_code_label:
+            self.study_code_label.configure(text="")
+        if self.study_mnemonic_label:
+            self.study_mnemonic_label.configure(text="")
+
+    def _on_study_button_click(self, char: str):
+        """Вызывается при клике на кнопку. ТОЛЬКО ПРОИГРЫВАЕТ ЗВУК."""
+        self.logic.start_playback(char)
+
+
+
