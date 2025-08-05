@@ -1,6 +1,7 @@
 import pyaudio
 import numpy as np
 import time
+from scipy import signal
 
 class AudioPlayer:
     """Генерирует и воспроизводит звуки Морзе."""
@@ -11,8 +12,10 @@ class AudioPlayer:
                                   channels=1,
                                   rate=self.sample_rate,
                                   output=True)
-        self.volume = 0.3 # Громкость по умолчанию 50%
+        self.volume = 0.3 # Громкость по умолчанию 30%
         
+        self.sound_type = "analog"
+
         self.set_wpm(wpm)
         self.set_tone(tone)
         self.attack_decay_ms = 5 # "Фронт" в мс для мягкости звука
@@ -38,6 +41,14 @@ class AudioPlayer:
         self.volume = max(0.0, min(1.0, volume_percent / 100.0))
         print(f"Громкость установлена на {volume_percent}%")
 
+    def set_sound_type(self, sound_type: str):
+        """Устанавливает тип звука: 'analog' или 'discrete'."""
+        if sound_type in ["analog", "discrete"]:
+            self.sound_type = sound_type
+            print(f"Тип звука установлен на: {self.sound_type}")
+        else:
+            print(f"Ошибка: неизвестный тип звука '{sound_type}'")
+
     def _generate_wave(self, duration: float):
         t = np.linspace(0, duration, int(self.sample_rate * duration), False)
         wave = np.sin(self.tone * t * 2 * np.pi)
@@ -59,15 +70,24 @@ class AudioPlayer:
     def _generate_wave(self, duration: float):
         """Генерирует волну синусоиды с плавной атакой/затуханием."""
         t = np.linspace(0, duration, int(self.sample_rate * duration), False)
-        wave = np.sin(self.tone * t * 2 * np.pi)
+        
+        if self.sound_type == "discrete":
+            # Генерируем прямоугольную волну (меандр)
+            wave = signal.square(2 * np.pi * self.tone * t)
+        else: # По умолчанию 'analog'
+            # Генерируем синусоиду
+            wave = np.sin(self.tone * t * 2 * np.pi)
+        
+        wave *= self.volume
 
         # Применяем огибающую (envelope) для сглаживания "щелчков"
-        attack_decay_samples = int(self.sample_rate * (self.attack_decay_ms / 1000.0))
-        if len(wave) > 2 * attack_decay_samples:
-            attack = np.linspace(0, 1, attack_decay_samples)
-            decay = np.linspace(1, 0, attack_decay_samples)
-            wave[:attack_decay_samples] *= attack
-            wave[-attack_decay_samples:] *= decay
+        if self.sound_type == "analog":
+            attack_decay_samples = int(self.sample_rate * (self.attack_decay_ms / 1000.0))
+            if len(wave) > 2 * attack_decay_samples:
+                attack = np.linspace(0, 1, attack_decay_samples)
+                decay = np.linspace(1, 0, attack_decay_samples)
+                wave[:attack_decay_samples] *= attack
+                wave[-attack_decay_samples:] *= decay
         
         return wave.astype(np.float32)
 

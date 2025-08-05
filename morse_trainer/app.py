@@ -119,7 +119,8 @@ class MorseTrainerApp(ctk.CTk):
                                     fg_color="#D32F2F", hover_color="#B71C1C") # Красный цвет для стоп-кнопки
         stop_button.grid(row=0, column=2, sticky="ew", padx=5)
 
-        self.sound_type_switch = ctk.CTkSwitch(footer_frame, text="Дискретный звук")
+        self.sound_type_switch = ctk.CTkSwitch(footer_frame, text="Дискретный звук",
+                                               command=self._update_sound_type)
         self.sound_type_switch.grid(row=0, column=3, padx=10)
 
     def _populate_lesson_menu(self):
@@ -146,6 +147,13 @@ class MorseTrainerApp(ctk.CTk):
 
     def _update_volume(self, value):
         self.audio_player.set_volume(int(value))
+
+    def _update_sound_type(self):
+        """Обновляет тип звука в плеере в зависимости от состояния переключателя."""
+        if self.sound_type_switch.get() == 1: # 1 - переключатель включен
+            self.audio_player.set_sound_type("discrete")
+        else: # 0 - переключатель выключен
+            self.audio_player.set_sound_type("analog")
 
     def _on_start_click(self):
         selected_lesson_str = self.lesson_optionmenu.get()
