@@ -1,22 +1,32 @@
 {
     "Deep Space": {
-        "comment": "Тема в стиле картинки с виджетами",
-        "bg_color": ["#1D202D", "#161821"],
-        "fg_color": "#282C3A",
-        "hover_color": "#3A4052",
-        "button_color": "#4A5063",
-        "button_hover_color": "#5A6175",
-        "text_color": "#D8DEE9",
-        "accent_color": "#E5788F"
+        "comment": "Холодный космос, туманности, звезды",
+        "background_image": "assets/imgs/DeepSpace_bg.jpg",
+        "main_bg": "transparent",
+        "card_bg": "#23293D",
+        "button_bg": "#4A5063",
+        "button_hover": "#646B82",
+        "accent_color": "#00BFFF",
+        "text_color": "#E0E5F0"
     },
-    "Dracula": {
-        "comment": "Классическая темная тема для кода",
-        "bg_color": ["#282a36", "#21222c"],
-        "fg_color": "#44475a",
-        "hover_color": "#6272a4",
-        "button_color": "#44475a",
-        "button_hover_color": "#6272a4",
-        "text_color": "#f8f8f2",
-        "accent_color": "#bd93f9"
+    "Doom": {
+        "comment": "Кровь, огонь и металл. Rip and Tear!",
+        "background_image": "assets/imgs/DOOM_bg.jpg",
+        "main_bg": "transparent",
+        "card_bg": ["#200000", "#100000"],
+        "button_bg": "#4E0000",
+        "button_hover": "#6D2020",
+        "accent_color": "#FF2D00",
+        "text_color": "#D4C8AF"
+    },
+    "No Background": {
+        "comment": "Простая, функциональная темная тема",
+        "background_image": null,
+        "main_bg": ["#2B2B2B", "#242424"],
+        "card_bg": "#343638",
+        "button_bg": "#565b5e",
+        "button_hover": "#656b6e",
+        "accent_color": "#4a90e2",
+        "text_color": "#dce4ee"
     }
 }

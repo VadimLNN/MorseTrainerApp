@@ -194,7 +194,7 @@ class MorseTrainerApp(ctk.CTk):
         self.sidebar_frame = ctk.CTkFrame(self, corner_radius=15)
         self.sidebar_frame.grid(row=0, column=0, padx=(10, 5), pady=10, sticky="nsew")
         
-        self.theme_label = ctk.CTkLabel(self.sidebar_frame, text="Тема оформления:")
+        self.theme_label = ctk.CTkLabel(self.sidebar_frame, text="Тема оформления: DOOM")
         self.theme_label.pack(pady=(15, 5), padx=20, anchor="w")
         theme_names = list(self.themes.keys())
         self.theme_menu = ctk.CTkOptionMenu(self.sidebar_frame, values=theme_names, command=self._on_theme_selected)
@@ -324,55 +324,37 @@ class MorseTrainerApp(ctk.CTk):
     
     def _load_fonts(self):
         """
-        Загружает и настраивает шрифты для приложения в соответствии с текущей темой.
+        Создает словарь с набором стандартных, надежных системных шрифтов.
         """
-        theme_data = self.themes.get(self.current_theme, {})
-        # Получаем имя семейства шрифтов, если его нет - 100% рабочий Arial
-        font_family = theme_data.get("font_family", "Arial")
-        print(f"Попытка применить семейство шрифтов: '{font_family}'")
-
-        # Просто создаем словарь с объектами CTkFont
-        self.fonts = {
-            "main_font": CTkFont(family=font_family, size=14),
-            "main_bold": CTkFont(family=font_family, size=14, weight="bold"),
-            "title_font": CTkFont(family=font_family, size=18, weight="bold"),
-            "huge_char": CTkFont(family=font_family, size=120, weight="bold"),
-            "morse_code": CTkFont(family=font_family, size=40),
-            "mnemonic": CTkFont(family=font_family, size=20),
-            "keyboard_button": CTkFont(family=font_family, size=16, weight="bold"),
-            "study_button": CTkFont(family=font_family, size=24, weight="bold"),
-        }
-
-        # --- Функция-помощник для безопасной загрузки одного шрифта ---
-        def load_single_font(size: int, weight: str = "normal"):
-            """Безопасно загружает один экземпляр шрифта."""
-            try:
-                # 1. Сначала пытаемся загрузить из файла (для портативности)
-                return CTkFont(family=font_file_path, size=size, weight=weight)
-            except Exception as e_file:
-                # print(f"Шрифт '{font_file_path}' не найден, ищем в системе. Ошибка: {e_file}")
-                try:
-                    # 2. Если не вышло, ищем по имени в системе
-                    return CTkFont(family=font_family, size=size, weight=weight)
-                except Exception as e_system:
-                    print(f"Системный шрифт '{font_family}' не найден. Используется Arial. Ошибка: {e_system}")
-                    # 3. Если и это не удалось, используем 100% рабочий вариант
-                    return CTkFont(family="Times New Roman", size=size, weight=weight)
-
-        # --- Создаем словарь со всеми необходимыми стилями шрифтов ---
-        print(f"Попытка загрузки семейства шрифтов: '{font_family}'...")
-        self.fonts = {
-            "main_font": load_single_font(size=14),
-            "main_bold": load_single_font(size=14, weight="bold"),
-            "title_font": load_single_font(size=18, weight="bold"),
-            "huge_char": load_single_font(size=120, weight="bold"),
-            "morse_code": load_single_font(size=40),
-            "mnemonic": load_single_font(size=20, weight="normal"), # Для напевов можно использовать 'slant="italic"'
-            "keyboard_button": load_single_font(size=16, weight="bold"),
-            "study_button": load_single_font(size=24, weight="bold"),
-        }
-        print("Шрифты успешно настроены.")
-
+        print("Загрузка стандартного набора шрифтов...")
+        try:
+            # Используем лучшие системные шрифты, которые точно есть
+            # Segoe UI для интерфейса, Consolas для моноширинного текста
+            self.fonts = {
+                "main_font": CTkFont(family="Segoe UI", size=14),
+                "main_bold": CTkFont(family="Segoe UI", size=14, weight="bold"),
+                "title_font": CTkFont(family="Segoe UI", size=18, weight="bold"),
+                "huge_char": CTkFont(family="Consolas", size=120, weight="bold"),
+                "morse_code": CTkFont(family="Consolas", size=40),
+                "mnemonic": CTkFont(family="Segoe UI", size=20, slant="italic"),
+                "keyboard_button": CTkFont(family="Consolas", size=16, weight="bold"),
+                "study_button": CTkFont(family="Consolas", size=24, weight="bold"),
+            }
+            print("Шрифты 'Segoe UI' и 'Consolas' успешно загружены.")
+        except Exception as e:
+            print(f"Не удалось загрузить стандартные шрифты. Используется Arial. Ошибка: {e}")
+            # Аварийный вариант, если даже стандартных шрифтов нет
+            self.fonts = {
+                "main_font": CTkFont(family="Arial", size=14),
+                "main_bold": CTkFont(family="Arial", size=14, weight="bold"),
+                "title_font": CTkFont(family="Arial", size=18, weight="bold"),
+                "huge_char": CTkFont(family="Arial", size=120, weight="bold"),
+                "morse_code": CTkFont(family="Arial", size=40),
+                "mnemonic": CTkFont(family="Arial", size=20, slant="italic"),
+                "keyboard_button": CTkFont(family="Arial", size=16, weight="bold"),
+                "study_button": CTkFont(family="Arial", size=24, weight="bold"),
+            }
+    
     def _populate_lesson_menu(self):
         """
         Заполняет выпадающий список уроков данными из конфигурации.
