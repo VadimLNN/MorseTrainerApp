@@ -54,6 +54,12 @@ class MorseTrainerApp(ctk.CTk):
         self.tone_slider.set(700)
         self.tone_slider.pack(pady=5, padx=20, fill="x")
 
+        volume_label = ctk.CTkLabel(sidebar_frame, text="Громкость (%)", font=("Fira Code", 14))
+        volume_label.pack(pady=(20, 5), padx=20, anchor="w")
+        self.volume_slider = ctk.CTkSlider(sidebar_frame, from_=0, to=100, command=self._update_volume)
+        self.volume_slider.set(50) # Ставим громкость по умолчанию
+        self.volume_slider.pack(pady=5, padx=20, fill="x")
+
         # --- Правая панель (основная) ---
         main_frame = ctk.CTkFrame(self, corner_radius=15)
         main_frame.grid(row=0, column=1, padx=(5, 10), pady=10, sticky="nsew")
@@ -127,6 +133,9 @@ class MorseTrainerApp(ctk.CTk):
 
     def _update_tone(self, value):
         self.audio_player.set_tone(int(value))
+
+    def _update_volume(self, value):
+        self.audio_player.set_volume(int(value))
 
     def _on_start_click(self):
         selected_lesson_str = self.lesson_optionmenu.get()
