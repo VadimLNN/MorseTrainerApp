@@ -73,9 +73,9 @@ class MorseLogic:
             morse_code = self.char_map.get(char.upper(), {}).get('code')
             if morse_code:
                 for symbol in morse_code:
-                    if symbol == '.':
+                    if symbol == '•':
                         self.audio_player.play_dot()
-                    elif symbol == '-':
+                    elif symbol == '–':
                         self.audio_player.play_dash()
                 self.audio_player.play_char_pause()
             time.sleep(0.1) # Небольшая задержка, чтобы не нагружать CPU
