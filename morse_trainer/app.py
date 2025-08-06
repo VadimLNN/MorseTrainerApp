@@ -4,6 +4,7 @@ import random
 from .utils import load_json
 from .audio_player import AudioPlayer
 from .morse_logic import MorseLogic
+from .utils import resource_path
 from PIL import Image
 
 class MorseTrainerApp(ctk.CTk):
@@ -11,9 +12,9 @@ class MorseTrainerApp(ctk.CTk):
         """Конструктор приложения."""
         super().__init__()
         # --- БЛОК 1: ЗАГРУЗКА КОНФИГУРАЦИЙ ---
-        self.themes = load_json("config/themes.json")
-        self.characters_data = load_json("config/characters.json")
-        self.lessons_data = load_json("config/lessons.json")
+        self.themes = load_json(resource_path("config/themes.json"))
+        self.characters_data = load_json(resource_path("config/characters.json"))
+        self.lessons_data = load_json(resource_path("config/lessons.json"))
         
         # --- БЛОК 2: АТРИБУТЫ СОСТОЯНИЯ ---
         self.current_theme = "Deep Space"
@@ -115,12 +116,20 @@ class MorseTrainerApp(ctk.CTk):
 
         if bg_image_path:
             try:
+
+                 # --- ИСПРАВЛЕНИЕ №1: Сначала получаем полный путь ---
+                full_path = resource_path(bg_image_path)
+
+                # --- ИСПРАВЛЕНИЕ №2: Открываем картинку с помощью Pillow ---
+                pillow_image = Image.open(full_path)
+
                 # Получаем актуальный размер окна. Если 0, используем геометрию по умолчанию.
                 win_width = self.winfo_width() or int(self.geometry().split('x')[0])
                 win_height = self.winfo_height() or int(self.geometry().split('x')[1].split('+')[0])
 
-                bg_image = ctk.CTkImage(Image.open(bg_image_path), size=(win_width, win_height))
-                
+                # --- ИСПРАВЛЕНИЕ №3: Передаем объект картинки, а не путь ---
+                bg_image = ctk.CTkImage(light_image=pillow_image, size=(win_width, win_height))
+
                 if self.bg_label is None:
                     self.bg_label = ctk.CTkLabel(self, text="", image=bg_image)
                     self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
@@ -139,8 +148,11 @@ class MorseTrainerApp(ctk.CTk):
             if self.bg_label:
                 self.bg_label.destroy()
                 self.bg_label = None
-            # Если фон не указан, ставим сплошной цвет
-            self.configure(fg_color=theme_data.get("main_bg", "#2B2B2B"))
+                
+            # --- ИСПРАВЛЕНИЕ №4: Проверяем на прозрачность ---
+            main_bg_color = theme_data.get("main_bg")
+            if main_bg_color and main_bg_color != "transparent":
+                self.configure(fg_color=main_bg_color)
 
     def _stylize_widget(self, widget, theme_data: dict):
         """
@@ -623,13 +635,13 @@ class MorseTrainerApp(ctk.CTk):
         display_frame.grid_propagate(False) # Запрещаем сжиматься
 
         # Размещаем элементы дисплея
-        self.study_char_label = ctk.CTkLabel(display_frame, text="?", font=self.fonts.get("huge_char"))
-        self.study_char_label.place(relx=0.5, rely=0.4, anchor="center")
-        
-        self.study_code_label = ctk.CTkLabel(display_frame, text="", font=self.fonts.get("morse_code"))
+        self.study_char_label = ctk.CTkLabel(display_frame, text="?", font=self.fonts.get("huge_char"), fg_color="transparent")
+        self.study_char_label.place(relx=0.5, rely=0.35, anchor="center")
+
+        self.study_code_label = ctk.CTkLabel(display_frame, text="", font=self.fonts.get("morse_code"), fg_color="transparent")
         self.study_code_label.place(relx=0.5, rely=0.7, anchor="center")
 
-        self.study_mnemonic_label = ctk.CTkLabel(display_frame, text="", font=self.fonts.get("mnemonic"))
+        self.study_mnemonic_label = ctk.CTkLabel(display_frame, text="", font=self.fonts.get("mnemonic"), fg_color="transparent")
         self.study_mnemonic_label.place(relx=0.5, rely=0.85, anchor="center")
 
         # Создаем фрейм для кнопок

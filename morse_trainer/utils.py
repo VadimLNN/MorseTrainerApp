@@ -1,6 +1,16 @@
-      
+import sys
 import json
 import os
+
+def resource_path(relative_path):
+    """ Получает абсолютный путь к ресурсу, работает как для скрипта, так и для .exe """
+    try:
+        # PyInstaller создает временную папку и кладет путь в _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 def load_json(file_path: str):
     """Безопасно загружает JSON файл."""
