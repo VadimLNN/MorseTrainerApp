@@ -38,6 +38,8 @@ class MorseTrainerApp(ctk.CTk):
         self._populate_lesson_menu()
         self.after(100, self._apply_theme)
 
+        self.bind("<KeyPress>", self._on_key_press)
+
     def _initialize_widget_references(self):
         """Объявляет все переменные для виджетов как None."""
         self.bg_label = None
@@ -817,14 +819,33 @@ class MorseTrainerApp(ctk.CTk):
     
     def show_error_and_replay(self, correct_char: str, start_new_round: bool = False):
         """Показывает модальное окно с правильным ответом и проигрывает его 3 раза."""
+        # --- Размеры для нового окна ---
+        window_width = 300
+        window_height = 150
+
+        # --- Создаем окно, но пока не показываем его ---
         error_window = ctk.CTkToplevel(self)
         error_window.title("Ошибка")
-        error_window.geometry("300x150")
         error_window.transient(self)
         error_window.grab_set()
         error_window.resizable(False, False)
 
-        label = ctk.CTkLabel(error_window, text=f"Ошибка!\nПравильный знак: {correct_char}", font=("Fira Code", 20))
+        # --- РАСЧЕТ КООРДИНАТ ДЛЯ ЦЕНТРИРОВАНИЯ ---
+        # 1. Получаем размеры и положение главного окна
+        main_window_x = self.winfo_x()
+        main_window_y = self.winfo_y()
+        main_window_width = self.winfo_width()
+        main_window_height = self.winfo_height()
+
+        # 2. Вычисляем координаты для нового окна по формуле
+        pos_x = main_window_x + (main_window_width // 2) - (window_width // 2)
+        pos_y = main_window_y + (main_window_height // 2) - (window_height // 2)
+
+        # 3. Устанавливаем геометрию окна с вычисленными координатами
+        error_window.geometry(f"{window_width}x{window_height}+{pos_x}+{pos_y}")
+        # -----------------------------------------------
+
+        label = ctk.CTkLabel(error_window, text=f"Ошибка!\nПравильный знак: {correct_char}", font=self.fonts.get("title_font"))
         label.pack(expand=True, pady=20)
 
         def replay_and_close(count=3):
@@ -833,7 +854,6 @@ class MorseTrainerApp(ctk.CTk):
             else:
                 error_window.grab_release()
                 error_window.destroy()
-                # ИСПРАВЛЕНО: Запускаем новый раунд, если нужно
                 if start_new_round and self.rounds_left > 0:
                     self.after(100, self._start_recognition_round)
 
@@ -858,4 +878,36 @@ class MorseTrainerApp(ctk.CTk):
             self.wpm_value_label.configure(text=str(wpm_value))
         self.audio_player.set_wpm(wpm_value)
 
+    def _on_key_press(self, event):
+        """
+        Обрабатывает все нажатия клавиш на клавиатуре.
+        
+        Args:
+            event: Объект события tkinter, содержит информацию о нажатой клавише.
+        """
+        # --- Проверяем, находимся ли мы в режиме распознавания ---
+        # Сначала получаем текущий тип упражнения
+        try:
+            selected_exercise_str = self.exercise_optionmenu.get()
+            exercise_id = int(selected_exercise_str.split(':')[0])
+            selected_lesson_str = self.lesson_optionmenu.get()
+            lesson_id = int(selected_lesson_str.split(':')[0])
+            exercise_type = self.logic.get_exercise_details(lesson_id, exercise_id)['type']
+        except (ValueError, IndexError, AttributeError, TypeError):
+            # Если не можем определить режим, ничего не делаем
+            return
 
+        # Если мы НЕ в режиме распознавания, выходим
+        if "recognition" not in exercise_type:
+            return
+            
+        # --- Логика для режима распознавания ---
+        
+        # Получаем нажатый символ. event.char вернет "а", "б", "1", "?" и т.д.
+        char_pressed = event.char.upper()
+        
+        # Проверяем, есть ли такой символ в нашей раскладке
+        if char_pressed in self.keyboard_buttons:
+            print(f"Клавиша нажата: '{char_pressed}'")
+            # Вызываем тот же самый метод, который используется при клике мышью!
+            self._on_recognition_button_click(char_pressed)
