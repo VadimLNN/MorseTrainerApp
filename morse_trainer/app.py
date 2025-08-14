@@ -56,6 +56,9 @@ class MorseTrainerApp(ctk.CTk):
         self.output_textbox = None
         self.study_char_label, self.study_code_label, self.study_mnemonic_label = None, None, None
         self.keyboard_buttons = {}
+        self.wpm_value_label = None
+        self.wpm_minus_button = None
+        self.wpm_plus_button = None
 
     def _on_theme_selected(self, theme_name: str):
         if not isinstance(theme_name, str) or theme_name not in self.themes: return
@@ -203,10 +206,11 @@ class MorseTrainerApp(ctk.CTk):
         self._create_main_panel()
 
     def _create_sidebar(self):
+        """Создает и наполняет левую панель (сайдбар) с настройками."""
         self.sidebar_frame = ctk.CTkFrame(self, corner_radius=15)
         self.sidebar_frame.grid(row=0, column=0, padx=(10, 5), pady=10, sticky="nsew")
         
-        self.theme_label = ctk.CTkLabel(self.sidebar_frame, text="Тема оформления: DOOM")
+        self.theme_label = ctk.CTkLabel(self.sidebar_frame, text="Тема оформления:")
         self.theme_label.pack(pady=(15, 5), padx=20, anchor="w")
         theme_names = list(self.themes.keys())
         self.theme_menu = ctk.CTkOptionMenu(self.sidebar_frame, values=theme_names, command=self._on_theme_selected)
@@ -214,10 +218,22 @@ class MorseTrainerApp(ctk.CTk):
 
         self.speed_label = ctk.CTkLabel(self.sidebar_frame, text="Скорость (WPM):")
         self.speed_label.pack(pady=(20, 5), padx=20, anchor="w")
-        self.wpm_slider = ctk.CTkSlider(self.sidebar_frame, from_=5, to=40, number_of_steps=35, command=self._update_wpm)
-        self.wpm_slider.pack(pady=5, padx=20, fill="x")
-        self.wpm_slider.set(10)
 
+        speed_control_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
+        speed_control_frame.pack(pady=5, padx=20, fill="x")
+        
+        speed_control_frame.grid_columnconfigure((0, 2), weight=1) # Кнопки
+        speed_control_frame.grid_columnconfigure(1, weight=2) # Текст по центру
+
+        self.wpm_minus_button = ctk.CTkButton(speed_control_frame, text="-", width=40, command=self._decrease_wpm)
+        self.wpm_minus_button.grid(row=0, column=0, sticky="w")
+        
+        self.wpm_value_label = ctk.CTkLabel(speed_control_frame, text="10")
+        self.wpm_value_label.grid(row=0, column=1, sticky="ew")
+
+        self.wpm_plus_button = ctk.CTkButton(speed_control_frame, text="+", width=40, command=self._increase_wpm)
+        self.wpm_plus_button.grid(row=0, column=2, sticky="e")
+        
         self.tone_label = ctk.CTkLabel(self.sidebar_frame, text="Тон (Hz):")
         self.tone_label.pack(pady=(20, 5), padx=20, anchor="w")
         self.tone_slider = ctk.CTkSlider(self.sidebar_frame, from_=400, to=1000, command=self._update_tone)
@@ -823,6 +839,23 @@ class MorseTrainerApp(ctk.CTk):
 
         replay_and_close()
 
-    
+    def _increase_wpm(self):
+        """+ скорость на 1."""
+        current_wpm = int(self.wpm_value_label.cget("text"))
+        new_wpm = max(5, current_wpm + 1)
+        self._update_wpm(new_wpm)
+
+    def _decrease_wpm(self):
+        """- скорость на 1."""
+        current_wpm = int(self.wpm_value_label.cget("text"))
+        new_wpm = max(5, current_wpm - 1)
+        self._update_wpm(new_wpm)
+
+    def _update_wpm(self, value):
+        """Обновляет скорость в плеере и на экране."""
+        wpm_value = int(value)
+        if self.wpm_value_label:
+            self.wpm_value_label.configure(text=str(wpm_value))
+        self.audio_player.set_wpm(wpm_value)
 
 
