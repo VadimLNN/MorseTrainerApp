@@ -39,13 +39,14 @@ class MorseTrainerApp(ctk.CTk):
         self.after(100, self._apply_theme)
 
         self.bind("<KeyPress>", self._on_key_press)
+        self.exercise_types_for_modes = {}
 
     def _initialize_widget_references(self):
         """Объявляет все переменные для виджетов как None."""
         self.bg_label = None
         self.sidebar_frame, self.main_frame = None, None
         self.theme_label, self.theme_menu = None, None
-        self.speed_label, self.wpm_slider = None, None
+        self.speed_label = None
         self.tone_label, self.tone_slider = None, None
         self.volume_label, self.volume_slider = None, None
         self.lesson_label, self.lesson_optionmenu = None, None
@@ -61,6 +62,10 @@ class MorseTrainerApp(ctk.CTk):
         self.wpm_value_label = None
         self.wpm_minus_button = None
         self.wpm_plus_button = None
+        self.training_mode_var = None # Переменная для RadioButton
+        self.custom_char_list = [] # Список для кастомных символов
+        self.custom_mode_button = None # Кнопка для вызова окна
+        self.custom_checkbox_vars = {}
 
     def _on_theme_selected(self, theme_name: str):
         if not isinstance(theme_name, str) or theme_name not in self.themes: return
@@ -91,12 +96,15 @@ class MorseTrainerApp(ctk.CTk):
         self.theme_label.configure(font=self.fonts["main_bold"], text_color=text_color)
         self.theme_menu.configure(font=self.fonts["main_font"], text_color=text_color, fg_color=button_bg, button_color=button_bg, button_hover_color=button_hover, dropdown_font=self.fonts["main_font"])
         self.speed_label.configure(font=self.fonts["main_font"], text_color=text_color)
-        self.wpm_slider.configure(button_color=button_bg, progress_color=accent_color, button_hover_color=button_hover)
+        self.wpm_value_label.configure(font=self.fonts["main_bold"], text_color=text_color)
+        self.wpm_minus_button.configure(font=self.fonts["main_font"], text_color=text_color, fg_color=button_bg, hover_color=button_hover)
+        self.wpm_plus_button.configure(font=self.fonts["main_font"], text_color=text_color, fg_color=button_bg, hover_color=button_hover)
+
         self.tone_label.configure(font=self.fonts["main_font"], text_color=text_color)
         self.tone_slider.configure(button_color=button_bg, progress_color=accent_color, button_hover_color=button_hover)
         self.volume_label.configure(font=self.fonts["main_font"], text_color=text_color)
         self.volume_slider.configure(button_color=button_bg, progress_color=accent_color, button_hover_color=button_hover)
-        
+
         # Основная панель - управление
         self.lesson_label.configure(font=self.fonts["main_font"], text_color=text_color)
         self.lesson_optionmenu.configure(font=self.fonts["main_font"], text_color=text_color, fg_color=button_bg, button_color=button_bg, button_hover_color=button_hover, dropdown_font=self.fonts["main_font"])
@@ -247,6 +255,26 @@ class MorseTrainerApp(ctk.CTk):
         self.volume_slider = ctk.CTkSlider(self.sidebar_frame, from_=0, to=100, command=self._update_volume)
         self.volume_slider.pack(pady=5, padx=20, fill="x")
         self.volume_slider.set(20)
+        self.volume_label = ctk.CTkLabel(self.sidebar_frame, text="Громкость (%):")
+
+        mode_label = ctk.CTkLabel(self.sidebar_frame, text="Режим тренировки:")
+        mode_label.pack(pady=(20, 5), padx=20, anchor="w")
+        
+        self.training_mode_var = ctk.StringVar(value="base")
+        
+        base_mode_rb = ctk.CTkRadioButton(self.sidebar_frame, text="База (по урокам)", 
+                                          variable=self.training_mode_var, value="base",
+                                          command=self._on_training_mode_changed)
+        base_mode_rb.pack(pady=5, padx=20, anchor="w")
+        
+        custom_mode_rb = ctk.CTkRadioButton(self.sidebar_frame, text="Свой набор",
+                                             variable=self.training_mode_var, value="custom",
+                                             command=self._on_training_mode_changed)
+        custom_mode_rb.pack(pady=(5,0), padx=20, anchor="w")
+        
+        self.custom_mode_button = ctk.CTkButton(self.sidebar_frame, text="Выбрать символы...",
+                                                command=self._open_custom_char_selector)
+        self.custom_mode_button.pack(pady=(5, 10), padx=40, fill="x")
 
     def _create_main_panel(self):
         self.main_frame = ctk.CTkFrame(self, corner_radius=15)
@@ -459,41 +487,44 @@ class MorseTrainerApp(ctk.CTk):
     def _on_exercise_selected(self, selected_exercise_name: str):
         """
         Обрабатывает выбор нового упражнения и перерисовывает основной интерфейс.
-        
-        Вызывается автоматически при смене упражнения в меню. Получает
-        необходимые данные из логического модуля и вызывает метод
-        `_reconfigure_ui_for_exercise` для обновления GUI.
-        
-        Args:
-            selected_exercise_name (str): Строка из меню, например "1: Изучение знаков".
         """
-        # --- Получаем ID урока из уже выбранного значения ---
-        selected_lesson_str = self.lesson_optionmenu.get()
-
-        # --- Безопасный парсинг ID ---
+        mode = self.training_mode_var.get()
+        
+        # --- Получаем ID урока (или фиктивный ID для других режимов) ---
+        lesson_id = 0
+        if mode == "base":
+            try:
+                lesson_id = int(self.lesson_optionmenu.get().split(':')[0])
+            except (ValueError, IndexError): return
+        
+        # --- Безопасный парсинг ID упражнения ---
         try:
-            lesson_id = int(selected_lesson_str.split(':')[0])
             exercise_id = int(selected_exercise_name.split(':')[0])
-        except (ValueError, IndexError, AttributeError):
-            print(f"Ошибка: Не удалось извлечь ID из строки '{selected_lesson_str}' или '{selected_exercise_name}'")
-            # Можно добавить очистку интерфейса, если что-то пошло не так
-            for widget in self.keyboard_frame.winfo_children():
-                widget.destroy()
-            return
+        except (ValueError, IndexError, AttributeError): return
             
         # --- Получаем детали упражнения и пул символов ---
         exercise = self.logic.get_exercise_details(lesson_id, exercise_id)
-        if not exercise:
-            print(f"Ошибка: Не найдены детали для Урока {lesson_id}, Упр. {exercise_id}")
-            return
+        if not exercise: return
         
         exercise_type = exercise['type']
-        self.current_char_pool = self.logic.get_character_pool(lesson_id, exercise_type)
         
-        print(f"Смена интерфейса на: Урок {lesson_id}, Упр. {exercise_id} (Тип: {exercise_type})")
+        # --- НОВАЯ ЛОГИКА ПОЛУЧЕНИЯ ПУЛА СИМВОЛОВ ---
+        self.current_char_pool = self.logic.get_character_pool(
+            mode=mode,
+            lesson_id=lesson_id,
+            exercise_type=exercise_type,
+            custom_list=self.custom_char_list
+        )
+        
+        print(f"Смена интерфейса на: Режим '{mode}', Упр. {exercise_id}")
+        print(f"Пул символов ({len(self.current_char_pool)}): {self.current_char_pool[:10]}...")
         
         # --- Перерисовываем UI ---
-        self._reconfigure_ui_for_exercise(exercise_type)
+        # Если в кастомном режиме ничего не выбрано, показываем клавиатуру, но пустую
+        if mode == 'custom' and not self.custom_char_list:
+            self._reconfigure_ui_for_exercise("recognition")
+        else:
+            self._reconfigure_ui_for_exercise(exercise_type)
 
     def _update_wpm(self, value):
         self.audio_player.set_wpm(int(value))
@@ -513,47 +544,44 @@ class MorseTrainerApp(ctk.CTk):
 
     def _on_start_click(self):
         """
-        Запускает активное действие для текущего выбранного упражнения.
-        
-        В зависимости от типа упражнения, эта функция либо запускает раунд
-        распознавания, либо инициирует воспроизведение групп символов.
-        Для режима "Изучение" кнопка неактивна.
+        Запускает активное действие для текущего выбранного упражнения,
+        учитывая активный режим тренировки.
         """
-        # --- Используем уже сохраненный пул символов ---
+        # --- БЛОК 1: Получаем все необходимые данные ---
+        mode = self.training_mode_var.get()
+
+        # Проверяем, есть ли вообще что тренировать
         if not self.current_char_pool:
             print("Невозможно начать: пул символов для упражнения пуст.")
+            if mode == 'custom':
+                self._open_custom_char_selector() # Предлагаем пользователю выбрать символы
             return
 
-        # --- Получаем тип упражнения более безопасным способом ---
+        # Получаем детали текущего упражнения
         try:
             selected_exercise_str = self.exercise_optionmenu.get()
             exercise_id = int(selected_exercise_str.split(':')[0])
-            # lesson_id нужен только для получения деталей, которые у нас уже есть
-            # но для надежности получим и его
-            selected_lesson_str = self.lesson_optionmenu.get()
-            lesson_id = int(selected_lesson_str.split(':')[0])
-            exercise_type = self.logic.get_exercise_details(lesson_id, exercise_id)['type']
+            
+            # ID урока нам не важен для получения типа упражнения
+            exercise_type = self.logic.get_exercise_details(0, exercise_id)['type']
+            
+            num_groups = int(self.groups_optionmenu.get())
+            group_size = int(self.group_size_optionmenu.get())
         except (ValueError, IndexError, AttributeError, TypeError):
-            print("Ошибка: не удалось определить тип текущего упражнения.")
+            print("Ошибка: не удалось определить параметры текущего упражнения.")
             return
 
-        print(f"СТАРТ для упражнения типа: '{exercise_type}'")
+        print(f"СТАРТ для: Режим '{mode}', Тип '{exercise_type}'")
 
-        # --- Разделение логики по типам упражнений ---
+        # --- БЛОК 2: Запускаем действие в зависимости от ТИПА упражнения ---
+        # Эта логика теперь едина для ВСЕХ режимов.
+
         if exercise_type == "study":
             print("В режиме изучения кнопка СТАРТ неактивна.")
             return
             
-        # --- Общая логика для всех упражнений на прием ---
-        try:
-            num_groups = int(self.groups_optionmenu.get())
-            group_size = int(self.group_size_optionmenu.get())
-        except ValueError:
-            print("Ошибка: неверные значения в меню групп или размера группы.")
-            return
-
-        if exercise_type in ["single_char_recognition_lesson", "single_char_recognition_cumulative"]:
-            # Логика для режима распознавания
+        elif "recognition" in exercise_type:
+            # Логика для режима распознавания (по одному символу)
             self.rounds_left = num_groups * group_size
             if self.rounds_left > 0:
                 self._start_recognition_round()
@@ -911,3 +939,138 @@ class MorseTrainerApp(ctk.CTk):
             print(f"Клавиша нажата: '{char_pressed}'")
             # Вызываем тот же самый метод, который используется при клике мышью!
             self._on_recognition_button_click(char_pressed)
+
+    def _on_training_mode_changed(self):
+        """Обрабатывает смену режима тренировки."""
+        mode = self.training_mode_var.get()
+        print(f"Режим тренировки изменен на: {mode}")
+        
+        is_base_mode = (mode == "base")
+        self.lesson_optionmenu.configure(state="normal" if is_base_mode else "disabled")
+        self.custom_mode_button.configure(state="normal" if not is_base_mode else "disabled")
+
+        self._update_exercise_menu_for_mode()
+
+    def _update_exercise_menu_for_mode(self):
+        """Обновляет список упражнений в меню в зависимости от режима."""
+        mode = self.training_mode_var.get()
+        
+        if not self.exercise_types_for_modes:
+            self.exercise_types_for_modes = self.lessons_data.get("exercise_types", {})
+
+        if mode == "base":
+            self._on_lesson_selected(self.lesson_optionmenu.get())
+        else: # "custom"
+            # В кастомном режиме всегда доступны все 4 типа упражнений
+            exercise_names = [f"{eid}: {data['description']}" 
+                              for eid, data in self.exercise_types_for_modes.items()]
+            
+            self.exercise_optionmenu.configure(values=exercise_names)
+            
+            is_custom_list_empty = not self.custom_char_list
+            self.exercise_optionmenu.configure(state="disabled" if is_custom_list_empty else "normal")
+            
+            if exercise_names and not is_custom_list_empty:
+                self.exercise_optionmenu.set(exercise_names[0])
+                self._on_exercise_selected(exercise_names[0])
+            else:
+                self._reconfigure_ui_for_exercise("recognition") # Показываем пустую клавиатуру
+
+    def _on_exercise_selected(self, selected_exercise_name: str):
+        """Обрабатывает выбор упражнения и перерисовывает интерфейс."""
+        mode = self.training_mode_var.get()
+        
+        lesson_id = 0
+        if mode == "base":
+            try: lesson_id = int(self.lesson_optionmenu.get().split(':')[0])
+            except: return
+        
+        try: exercise_id = int(selected_exercise_name.split(':')[0])
+        except: return
+            
+        exercise = self.logic.get_exercise_details(lesson_id, exercise_id)
+        if not exercise: return
+        
+        exercise_type = exercise['type']
+        
+        self.current_char_pool = self.logic.get_character_pool(
+            mode=mode, lesson_id=lesson_id, exercise_type=exercise_type,
+            custom_list=self.custom_char_list
+        )
+        
+        self._reconfigure_ui_for_exercise(exercise_type)
+
+    def _open_custom_char_selector(self):
+        """Открывает модальное окно для выбора кастомных символов."""
+        selector_window = ctk.CTkToplevel(self)
+        selector_window.title("Выбор символов для тренировки")
+        selector_window.transient(self)
+        selector_window.grab_set()
+
+        actions_frame = ctk.CTkFrame(selector_window, fg_color="transparent")
+        actions_frame.pack(pady=10, padx=10, fill="x")
+        actions_frame.grid_columnconfigure((0, 1, 2), weight=1)
+
+        kb_frame = ctk.CTkFrame(selector_window)
+        kb_frame.pack(pady=10, padx=10, expand=True, fill="both")
+
+        # --- ИЗМЕНЕНИЕ: Используем атрибут класса ---
+        self.custom_checkbox_vars = {}
+        layout = self.logic.get_keyboard_layout()
+        
+        for row_idx, row_chars in enumerate(layout):
+            for col_idx, char in enumerate(row_chars):
+                var = ctk.StringVar(value="on" if char in self.custom_char_list else "off")
+                checkbox = ctk.CTkCheckBox(kb_frame, text=char, variable=var, onvalue="on", offvalue="off")
+                checkbox.grid(row=row_idx, column=col_idx, padx=5, pady=5)
+                # --- ИЗМЕНЕНИЕ: Сохраняем в атрибут класса ---
+                self.custom_checkbox_vars[char] = var
+
+        # --- Функции для кнопок-помощников ---
+        def clear_all():
+            """Снимает все галочки."""
+            # --- ИЗМЕНЕНИЕ: Обращаемся к атрибуту класса ---
+            for var in self.custom_checkbox_vars.values():
+                var.set("off")
+
+        def select_all_letters():
+            """Выбирает ТОЛЬКО все буквы."""
+            clear_all()
+            letters = self.logic.get_all_letters()
+            # --- ИЗМЕНЕНИЕ: Обращаемся к атрибуту класса ---
+            for char, var in self.custom_checkbox_vars.items():
+                if char in letters:
+                    var.set("on")
+
+        def select_all_digits():
+            """Выбирает ТОЛЬКО все цифры."""
+            clear_all()
+            digits = self.logic.get_all_digits()
+            # --- ИЗМЕНЕНИЕ: Обращаемся к атрибуту класса ---
+            for char, var in self.custom_checkbox_vars.items():
+                if char in digits:
+                    var.set("on")
+        
+        # --- Создаем кнопки-помощники ---
+        btn_letters = ctk.CTkButton(actions_frame, text="Все буквы", command=select_all_letters)
+        btn_letters.grid(row=0, column=0, padx=5)
+
+        btn_digits = ctk.CTkButton(actions_frame, text="Все цифры", command=select_all_digits)
+        btn_digits.grid(row=0, column=1, padx=5)
+
+        btn_clear = ctk.CTkButton(actions_frame, text="Очистить", command=clear_all, fg_color="#D32F2F", hover_color="#B71C1C")
+        btn_clear.grid(row=0, column=2, padx=5)
+
+        # --- Кнопка OK ---
+        def on_ok():
+            # --- ИЗМЕНЕНИЕ: Обращаемся к атрибуту класса ---
+            self.custom_char_list = [char for char, var in self.custom_checkbox_vars.items() if var.get() == "on"]
+            print(f"Новый кастомный список: {self.custom_char_list}")
+            selector_window.destroy()
+            self._on_training_mode_changed()
+
+        ok_button = ctk.CTkButton(selector_window, text="Применить", command=on_ok)
+        ok_button.pack(pady=10, padx=10, fill="x")
+
+
+

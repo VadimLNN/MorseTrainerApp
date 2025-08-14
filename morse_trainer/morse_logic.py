@@ -13,10 +13,16 @@ class MorseLogic:
 
         self.keyboard_layout = characters_data.get("keyboard_layout", ["ABC", "123"])
 
-        # Объединяем все словари из characters_data в один для удобного поиска
-        self.char_map.update(characters_data.get("alphabet", {}))
-        self.char_map.update(characters_data.get("digits", {}))
-        self.char_map.update(characters_data.get("signs", {}))
+        self.char_map = {
+            "alphabet": characters_data.get("alphabet", {}),
+            "digits": characters_data.get("digits", {}),
+            "signs": characters_data.get("signs", {})
+        }
+        # Создаем "плоскую" версию только для быстрого поиска кода/напева
+        self._flat_char_map = {}
+        self._flat_char_map.update(self.char_map["alphabet"])
+        self._flat_char_map.update(self.char_map["digits"])
+        self._flat_char_map.update(self.char_map["signs"])
 
         self.is_playing = False
         self.playback_thread = None
@@ -70,7 +76,7 @@ class MorseLogic:
                 self.audio_player.play_char_pause() # Дополнительная пауза для пробела
                 continue
 
-            morse_code = self.char_map.get(char.upper(), {}).get('code')
+            morse_code = self._flat_char_map.get(char.upper(), {}).get('code')
             if morse_code:
                 for symbol in morse_code:
                     if symbol == '•':
@@ -105,26 +111,52 @@ class MorseLogic:
 
     def get_char_details(self, char: str):
         """Возвращает детали для одного символа (код и напев)."""
-        return self.char_map.get(char.upper())
+        return self._flat_char_map.get(char.upper())
 
-    def get_character_pool(self, lesson_id: int, exercise_type: str):
-        """Определяет набор символов для упражнения в зависимости от его типа."""
+    def get_character_pool(self, mode: str, lesson_id: int, exercise_type: str, custom_list: list):
+        """
+        Определяет набор символов для упражнения в зависимости от режима тренировки.
         
-        # Упражнение 1 и 2: только новые знаки текущего урока
-        if exercise_type in ["study", "single_char_recognition_lesson"]:
-            for lesson in self.course_data:
-                if lesson['lesson_id'] == lesson_id:
-                    return lesson.get('new_chars', [])
-            return []
+        Args:
+            mode (str): Текущий режим ('base', 'letters', 'digits', 'custom').
+            lesson_id (int): ID текущего урока (используется только в режиме 'base').
+            exercise_type (str): Тип упражнения.
+            custom_list (list): Список символов, выбранных пользователем.
+        
+        Returns:
+            list: Список символов для текущего упражнения.
+        """
+        if mode == "letters":
+            return self.get_all_letters()
             
-        # Упражнение 3 и 4: все изученные знаки (текущий урок + все предыдущие)
-        elif exercise_type in ["single_char_recognition_cumulative", "group_reception"]:
-            cumulative_chars = []
-            for lesson in self.course_data:
-                # Добавляем знаки, если урок не "старше" текущего
-                if lesson['lesson_id'] <= lesson_id:
-                    cumulative_chars.extend(lesson.get('new_chars', []))
-            return list(dict.fromkeys(cumulative_chars)) # Удаляем дубликаты, сохраняя порядок
+        elif mode == "digits":
+            return self.get_all_digits()
+            
+        elif mode == "custom":
+            return custom_list
+            
+        elif mode == "base":
+            # --- Старая логика для режима "База" ---
+            if exercise_type in ["study", "single_char_recognition_lesson"]:
+                for lesson in self.course_data:
+                    if lesson['lesson_id'] == lesson_id:
+                        return lesson.get('new_chars', [])
+                return []
+            
+            elif exercise_type in ["single_char_recognition_cumulative", "group_reception"]:
+                cumulative_chars = []
+                for lesson in self.course_data:
+                    if lesson['lesson_id'] <= lesson_id:
+                        cumulative_chars.extend(lesson.get('new_chars', []))
+                return list(dict.fromkeys(cumulative_chars))
             
         return []
 
+    def get_all_letters(self):
+        """Возвращает список всех букв из конфигурации."""
+        return list(self.char_map.get("alphabet", {}).keys())
+
+    def get_all_digits(self):
+        """Возвращает список всех цифр из конфигурации."""
+        return list(self.char_map.get("digits", {}).keys())
+    
